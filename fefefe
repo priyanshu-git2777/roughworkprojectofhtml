@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi Alarm Clock</title>
+<style>
+body{font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#000000,#3a3a3a);color:#fff;height:100vh;margin:0;display:flex;justify-content:center;align-items:center}
+.container{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);padding:30px;border-radius:15px;box-shadow:0 0 20px rgba(255,255,255,0.1);text-align:center;width:370px}
+h1{margin-bottom:15px;color:#b3b3b3;font-size:1.8em}
+.clock{font-size:1.5em;margin-bottom:20px;color:#e0e7ff}
+input,select,button{width:80%;margin:8px auto;padding:10px;border:none;border-radius:8px;display:block;font-size:1em}
+button{background:#555;color:#fff;cursor:pointer;transition:0.3s}
+button:hover{background:#888}
+.days{display:flex;justify-content:space-between;width:80%;margin:10px auto}
+.days label{display:flex;align-items:center;gap:4px;font-size:0.9em}
+.alarm-list{margin-top:15px}
+.alarm-item{background:#222;margin:6px 0;padding:8px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999}
+.modal-card{background:#1a1a1a;padding:22px;border-radius:12px;width:320px;text-align:center;box-shadow:0 10px 30px rgba(255,255,255,0.1)}
+.blink{font-size:1.3em;font-weight:700;color:#fffbeb;padding:8px;border-radius:8px;display:inline-block}
+@keyframes blinkAnim{0%{opacity:1}50%{opacity:0.1}100%{opacity:1}}
+.blinking{animation:blinkAnim 1s infinite}
+.modal-buttons{margin-top:12px;display:flex;gap:10px;justify-content:center}
+.stop-btn{background:#ef4444}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>⏰ Multi Alarm Clock</h1>
+  <div class="clock" id="clock">--:--:--</div>
+  <input type="time" id="timeInput">
+  <div class="days">
+    <label><input type="checkbox" value="1">Mon</label>
+    <label><input type="checkbox" value="2">Tue</label>
+    <label><input type="checkbox" value="3">Wed</label>
+    <label><input type="checkbox" value="4">Thu</label>
+    <label><input type="checkbox" value="5">Fri</label>
+    <label><input type="checkbox" value="6">Sat</label>
+  </div>
+  <input type="text" id="labelInput" placeholder="Alarm label">
+  <button id="addAlarm">Add Alarm</button>
+  <div class="alarm-list" id="alarmList"></div>
+  <audio id="alarmSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+</div>
+
+<div id="modal" style="display:none" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div id="modalLabel" class="blink">Alarm</div>
+    <div class="modal-buttons">
+      <button id="stopBtn" class="stop-btn">Stop</button>
+      <button id="dismissBtn">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let alarms=[]
+let active=false
+let activeLabel=''
+function render(){
+  const list=document.getElementById('alarmList')
+  list.innerHTML=''
+  alarms.forEach((a,i)=>{
+    const div=document.createElement('div')
+    div.className='alarm-item'
+    let days=a.days.length>0?('('+a.days.join(',')+')'):'(Daily)'
+    div.innerHTML=`${a.time} ${days} - ${a.label||'Alarm'} <button onclick="removeAlarm(${i})">❌</button>`
+    list.appendChild(div)
+  })
+}
+function addAlarm(){
+  const time=document.getElementById('timeInput').value
+  const label=document.getElementById('labelInput').value
+  const dayInputs=document.querySelectorAll('.days input:checked')
+  const days=[...dayInputs].map(d=>d.value)
+  if(!time)return alert('Please select time')
+  alarms.push({time,label,days})
+  render()
+}
+function removeAlarm(i){alarms.splice(i,1);render()}
+function showModal(label){
+  active=true
+  activeLabel=label||'Alarm'
+  const m=document.getElementById('modal')
+  const lbl=document.getElementById('modalLabel')
+  lbl.textContent=activeLabel
+  lbl.classList.add('blinking')
+  m.style.display='flex'
+}
+function hideModal(){
+  active=false
+  const m=document.getElementById('modal')
+  const lbl=document.getElementById('modalLabel')
+  lbl.classList.remove('blinking')
+  m.style.display='none'
+  stopSound()
+}
+function stopSound(){
+  const audio=document.getElementById('alarmSound')
+  audio.pause()
+  audio.currentTime=0
+  audio.loop=false
+}
+function stopAll(){
+  stopSound()
+  hideModal()
+}
+function checkAlarms(){
+  let now=new Date()
+  let current=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0')
+  let today=now.getDay()
+  alarms.forEach(a=>{
+    if(a.time===current && (a.days.length===0 || a.days.includes(today.toString()))){
+      if(!active){
+        const audio=document.getElementById('alarmSound')
+        audio.currentTime=0
+        audio.loop=true
+        audio.play()
+        showModal(a.label||'Alarm')
+      }
+    }
+  })
+}
+setInterval(checkAlarms,60000)
+setInterval(()=>{const now=new Date();document.getElementById('clock').textContent=now.toLocaleTimeString()},1000)
+document.getElementById('addAlarm').onclick=addAlarm
+document.getElementById('stopBtn').onclick=stopAll
+document.getElementById('dismissBtn').onclick=stopAll
+</script>
+</body>
+</html>

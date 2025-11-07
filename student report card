@@ -1,0 +1,238 @@
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
+
+public class StudentReportCard {
+
+    public static void main(String[] args) {
+        new ReportCardApp().run();
+    }
+
+    static class Student {
+        private static int nextId = 1001;
+        private final int id;
+        private String name;
+        private int age;
+        private String className;
+        private Map<String, Integer> marks = new LinkedHashMap<>();
+
+        public Student(String name, int age, String className) {
+            this.id = nextId++;
+            this.name = name;
+            this.age = age;
+            this.className = className;
+        }
+
+        public int getId() { return id; }
+        public String getName() { return name; }
+        public int getAge() { return age; }
+        public String getClassName() { return className; }
+        public Map<String,Integer> getMarks() { return marks; }
+        public void setName(String name) { this.name = name; }
+        public void setAge(int age) { this.age = age; }
+        public void setClassName(String className) { this.className = className; }
+        public void setMarks(Map<String,Integer> marks) { this.marks = new LinkedHashMap<>(marks); }
+
+        public int getTotalMarks() {
+            int sum = 0;
+            for (int m : marks.values()) sum += m;
+            return sum;
+        }
+
+        public double getPercentage() {
+            if (marks.isEmpty()) return 0.0;
+            double total = getTotalMarks();
+            double maxTotal = 100.0 * marks.size();
+            return (total / maxTotal) * 100.0;
+        }
+
+        public boolean isPass() {
+            if (marks.isEmpty()) return false;
+            for (int m : marks.values()) if (m < 35) return false;
+            return true;
+        }
+
+        public String getGrade() {
+            double p = getPercentage();
+            if (!isPass()) return "F";
+            if (p >= 90) return "A+";
+            if (p >= 80) return "A";
+            if (p >= 70) return "B+";
+            if (p >= 60) return "B";
+            if (p >= 50) return "C";
+            return "D";
+        }
+    }
+
+    static class ReportCardApp {
+        private final Scanner sc = new Scanner(System.in);
+        private final List<Student> students = new ArrayList<>();
+
+        public void run() {
+            System.out.println("=== Student Report Card Generator ===\n");
+            boolean running = true;
+            while (running) {
+                printMenu();
+                int choice = readInt("Choose option: ");
+                switch (choice) {
+                    case 1 -> addStudent();
+                    case 2 -> viewAllStudents();
+                    case 3 -> viewStudentReport();
+                    case 4 -> editStudent();
+                    case 5 -> deleteStudent();
+                    case 6 -> exportToCSV();
+                    case 7 -> searchStudents();
+                    case 0 -> { System.out.println("Exiting. Bye!"); running = false; }
+                    default -> System.out.println("Invalid choice. Try again.");
+                }
+                System.out.println();
+            }
+        }
+
+        private void printMenu() {
+            System.out.println("Menu:");
+            System.out.println("1. Add new student");
+            System.out.println("2. View all students (summary)");
+            System.out.println("3. View a student's report card (detailed)");
+            System.out.println("4. Edit a student");
+            System.out.println("5. Delete a student");
+            System.out.println("6. Export all to CSV");
+            System.out.println("7. Search students");
+            System.out.println("0. Exit");
+        }
+
+        private void addStudent() {
+            System.out.println("--- Add New Student ---");
+            String name = readNonEmptyString("Name: ");
+            int age = readInt("Age: ");
+            String cls = readNonEmptyString("Class (e.g., 10A): ");
+            Student st = new Student(name, age, cls);
+            System.out.println("Enter subjects and marks. Type 'done' when finished.");
+            Map<String, Integer> marks = readMarksInteractive();
+            st.setMarks(marks);
+            students.add(st);
+            System.out.printf("Student added with ID %d\n", st.getId());
+        }
+
+        private Map<String,Integer> readMarksInteractive() {
+            Map<String,Integer> marks = new LinkedHashMap<>();
+            while (true) {
+                String subject = readString("Subject (or 'done'): ").trim();
+                if (subject.equalsIgnoreCase("done")) break;
+                if (subject.isEmpty()) continue;
+                int mark = readIntInRange("Marks (0-100): ", 0, 100);
+                marks.put(subject, mark);
+            }
+            return marks;
+        }
+
+        private void viewAllStudents() {
+            System.out.println("--- Students Summary ---");
+            if (students.isEmpty()) {
+                System.out.println("No students yet.");
+                return;
+            }
+            System.out.printf("%-6s %-20s %-6s %-8s %-10s %-6s\n", "ID", "Name", "Age", "Class", "Total", "Pct");
+            for (Student s : students) {
+                System.out.printf("%-6d %-20s %-6d %-8s %-10d %-6.2f\n",
+                    s.getId(), s.getName(), s.getAge(), s.getClassName(),
+                    s.getTotalMarks(), s.getPercentage());
+            }
+        }
+
+        private void viewStudentReport() {
+            System.out.println("--- View Student Report Card ---");
+            int id = readInt("Enter student ID: ");
+            Student s = findById(id);
+            if (s == null) {
+                System.out.println("Student not found.");
+                return;
+            }
+            printReportCard(s);
+        }
+
+        private void printReportCard(Student s) {
+            System.out.println("=======================================");
+            System.out.printf("Report Card - ID: %d\n", s.getId());
+            System.out.println("---------------------------------------");
+            System.out.printf("Name : %s\n", s.getName());
+            System.out.printf("Age  : %d\n", s.getAge());
+            System.out.printf("Class: %s\n", s.getClassName());
+            System.out.println("---------------------------------------");
+            System.out.printf("%-20s %6s\n", "Subject", "Marks");
+            System.out.println("---------------------------------------");
+            for (Map.Entry<String,Integer> e : s.getMarks().entrySet()) {
+                System.out.printf("%-20s %6d\n", e.getKey(), e.getValue());
+            }
+            System.out.println("---------------------------------------");
+            System.out.printf("Total     : %d\n", s.getTotalMarks());
+            System.out.printf("Percentage: %.2f%%\n", s.getPercentage());
+            System.out.printf("Grade     : %s\n", s.getGrade());
+            System.out.printf("Result    : %s\n", s.isPass() ? "PASS" : "FAIL");
+            System.out.println("=======================================\n");
+        }
+
+        private void editStudent() {
+            System.out.println("--- Edit Student ---");
+            int id = readInt("Enter student ID to edit: ");
+            Student s = findById(id);
+            if (s == null) {
+                System.out.println("Student not found.");
+                return;
+            }
+            System.out.printf("Editing %s (ID %d)\n", s.getName(), s.getId());
+            System.out.println("1. Edit basic info");
+            System.out.println("2. Edit marks");
+            System.out.println("0. Cancel");
+            int c = readInt("Choose: ");
+            if (c == 1) {
+                String newName = readNonEmptyString("New name (leave blank to keep): ");
+                if (!newName.isEmpty()) s.setName(newName);
+                String ageStr = readString("New age (leave blank to keep): ");
+                if (!ageStr.isBlank()) {
+                    try { s.setAge(Integer.parseInt(ageStr.trim())); } 
+                    catch (NumberFormatException ex) {}
+                }
+                String newClass = readNonEmptyString("New class (leave blank to keep): ");
+                if (!newClass.isEmpty()) s.setClassName(newClass);
+            } else if (c == 2) {
+                System.out.println("Current marks:");
+                printMarksWithIndex(s);
+                System.out.println("1. Add / Update subject");
+                System.out.println("2. Remove subject");
+                System.out.println("3. Replace all marks");
+                System.out.println("0. Cancel");
+                int subChoice = readInt("Choice: ");
+                if (subChoice == 1) {
+                    String subj = readNonEmptyString("Subject name: ");
+                    int mark = readIntInRange("Marks (0-100): ", 0, 100);
+                    s.getMarks().put(subj, mark);
+                } else if (subChoice == 2) {
+                    String subj = readNonEmptyString("Subject name to remove: ");
+                    s.getMarks().remove(subj);
+                } else if (subChoice == 3) {
+                    Map<String,Integer> newMarks = readMarksInteractive();
+                    s.setMarks(newMarks);
+                }
+            }
+        }
+
+        private void deleteStudent() {
+            System.out.println("--- Delete Student ---");
+            int id = readInt("Enter student ID to delete: ");
+            Student s = findById(id);
+            if (s == null) {
+                System.out.println("Student not found.");
+                return;
+            }
+            String confirm = readNonEmptyString("Type 'YES' to confirm deletion: ");
+            if (confirm.equalsIgnoreCase("YES")) students.remove(s);
+        }
+
+        private void exportToCSV() {
+            System.out.println("--- Export to CSV ---");
+            if (students.isEmpty()) {
+                System.out.println("No students to export.");
+                return;
+            }
+            String filename = readNonEmptyStr
